@@ -251,6 +251,7 @@ public class AnimatorClipPathFixer : EditorWindow
             _reports.Add(resolver.AnalyzeClip(clip));
         }
 
+        SortReportsByBrokenBindings();
         Repaint();
     }
 
@@ -272,8 +273,34 @@ public class AnimatorClipPathFixer : EditorWindow
         var summary = FixController(_controller, animator.gameObject, _manualPrefix);
         _reports.Clear();
         _reports.AddRange(summary.Reports);
+        SortReportsByBrokenBindings();
         Repaint();
         ShowFixResultDialog(summary);
+    }
+
+    /// <summary>
+    /// 含失效绑定（或仍有未修复项）的片段靠前；同类按失效数量降序，再按片段名排序。
+    /// </summary>
+    private void SortReportsByBrokenBindings()
+    {
+        _reports.Sort((a, b) =>
+        {
+            var aRemaining = Math.Max(0, a.BrokenBindings - a.FixedBindings);
+            var bRemaining = Math.Max(0, b.BrokenBindings - b.FixedBindings);
+
+            var aHasIssue = aRemaining > 0;
+            var bHasIssue = bRemaining > 0;
+            if (aHasIssue != bHasIssue)
+                return bHasIssue.CompareTo(aHasIssue);
+
+            if (aRemaining != bRemaining)
+                return bRemaining.CompareTo(aRemaining);
+
+            if (a.BrokenBindings != b.BrokenBindings)
+                return b.BrokenBindings.CompareTo(a.BrokenBindings);
+
+            return string.Compare(a.Clip?.name, b.Clip?.name, StringComparison.Ordinal);
+        });
     }
 
     private void DrawReports()
